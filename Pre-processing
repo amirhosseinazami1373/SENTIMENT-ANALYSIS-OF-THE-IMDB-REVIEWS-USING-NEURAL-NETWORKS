@@ -1,0 +1,62 @@
+#pre-processing def
+# Remove HTML tags
+def preprocess_text(text):
+    text = re.sub('<.*?>', '', text)
+    # Remove URLs
+    text = re.sub(r'http\S+', '', text)
+    # Remove punctuation and numbers
+    text = re.sub('[^a-zA-Z]', ' ', text)
+    # Remove single characters
+    text = re.sub(r'\s+[a-zA-Z]\s+', ' ', text)
+    # Remove multiple spaces
+    text = re.sub(r'\s+', ' ', text)
+    # Convert to lowercase
+    text = text.lower()
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    words = text.split()
+    words = [word for word in words if word not in stop_words]
+    text = ' '.join(words)
+    return text
+
+X = []
+sentences = list(df['review'])
+for sen in sentences:
+    X.append(preprocess_text(sen))
+    
+y = df['sentiment']
+
+#setting up the test and training data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+
+#Tokenizer will help to to set index for each and every word in the pile of words that we have within our data.
+word_tokenizer = Tokenizer()
+word_tokenizer.fit_on_texts(X_train)
+
+X_train = word_tokenizer.texts_to_sequences(X_train)
+X_test = word_tokenizer.texts_to_sequences(X_test)
+
+#Padding, will help to equalize the length of the data
+max_len = 100
+X_train = pad_sequences(train_sequences, maxlen=max_len, padding='post', truncating='post')
+X_test = pad_sequences(test_sequences, maxlen=max_len, padding='post', truncating='post')
+
+vocab_length = len(word_tokenizer.word_index) + 1
+
+# Get the GloVe embeddings. This will apply each word to its target embeding.
+glove_embeddings = {}
+with open('glove.6B.100d.txt', encoding='utf-8') as f:
+    for line in f:
+        values = line.split()
+        word = values[0]
+        coefs = np.asarray(values[1:], dtype='float32')
+        glove_embeddings[word] = coefs
+
+embedding_matrix = np.zeros((vocab_length, 100))
+for word, index in word_tokenizer.word_index.items():
+    embedding_vector = glove_embeddings.get(word)
+    if embedding_vector is not None:
+        embedding_matrix[index] = embedding_vector
+
+
+
